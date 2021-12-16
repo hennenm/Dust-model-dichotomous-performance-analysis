@@ -1,0 +1,533 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2513
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 var fc = Baddock\
+.merge(Bullard)\
+.merge(Eckardt)\
+.merge(Hennen)\
+.merge(Kandakji)\
+.merge(Lee)\
+.merge(Nobakht)\
+.merge(Schepanski)\
+.merge(vonHoldt);\
+Map.addLayer(fc, \{color: 'blue'\}, 'features');\
+\
+//Map.addLayer(Lee, \{color: 'blue'\}, 'Lee');\
+//Map.addLayer(Kandakji, \{color: 'green'\}, 'Kandakji');//print(Kandakji,'Kandakji');stop\
+//Map.addLayer(Hennen, \{color: 'red'\}, 'Hennen');\
+//Map.addLayer(Baddock, \{color: 'yellow'\}, 'Baddock');\
+//Map.addLayer(Bullard, \{color: 'black'\}, 'Bullard');\
+//Map.addLayer(Eckardt, \{color: 'orange'\}, 'Eckardt');\
+//Map.addLayer(vonHoldt, \{color: 'purple'\}, 'vonHoldt');\
+//Map.addLayer(Schepanski, \{color: 'brown'\}, 'Schepanski');\
+//Map.addLayer(Nobakht, \{color: 'cyan'\}, 'Nobakht');\
+//print(Eckardt,'Eckardt');stop\
+\
+//MODIS image for masking sea \
+var classifiedImage = ee.Image('MODIS/051/MCD12Q1/2009_01_01');\
+var mask = classifiedImage.select(['Land_Cover_Type_1']);\
+\
+//ISRIC (Hegl et al 2016) Soilgrids 250 m mass fraction in % at depth 0 m (with up to 8% uncertainty)\
+clay = clay.where(clay.gt(100),0);//<2 um\
+var clay20 = clay.where(clay.gt(20),20);//clay truncated to 20%\
+var maskclay20 = clay20.updateMask(mask);\
+//Map.addLayer(maskclay20,\{min:0,max:20,palette: ['black','brown','green','red','pink','orange','yellow']\},'clay <20%');\
+silt = silt.where(silt.gt(100),0);//2-50 um\
+sand = sand.where(sand.gt(100),0);//50-2000 um\
+\
+var D_clay = ee.Image(0.000001); // mass median particle size diameter microns\
+var D_silt = ee.Image(0.000025); // mass median particle size diameter microns\
+var D_sand = ee.Image(0.000100); // mass median particle size diameter microns\
+var Dsd_clay = ee.Image(0.00002); // mass median particle size diameter sd (microns)\
+var Dsd_silt = ee.Image(0.00002); // mass median particle size diameter sd (microns)\
+var Dsd_sand = ee.Image(0.00002); // mass median particle size diameter sd (microns)\
+\
+// particle size d = 2, 11, 22, 52, 90 and 125 microns\
+var d1 = ee.Image(0.000002);\
+var d2 = ee.Image(0.000005);\
+var d3 = ee.Image(0.000010);\
+var d4 = ee.Image(0.000022);\
+var d5 = ee.Image(0.000052);\
+var d6 = ee.Image(0.000090);\
+var d7 = ee.Image(0.000125);\
+var d8 = ee.Image(0.000250);\
+var d9 = ee.Image(0.000500);\
+var d10 = ee.Image(0.001000);\
+\
+//Usts constant for each particle size d1-d6\
+//Shao and Lu 2007\
+var c = ee.Image(1); // tuning factor for magnitude (set to 1 in Darmenova et al., 2010)\
+var g = ee.Image(9.81); // gravity m/s\
+var ad = ee.Image(1.230); // air density g/m^3 for MB95\
+var An = ee.Image(0.0123); // tuning factor for amplitude or pattern (original 0.0123)\
+var pd = ee.Image(2650); // particle density kg/m^3\
+var T = ee.Image(0.000165); // cohesion coeff kg/s^2\
+\
+var USts_d1 = ee.Image(2.1);\
+var USts_d2 = ee.Image(1.0);\
+var USts_d3 = ee.Image(0.6);\
+var USts_d4 = ee.Image(0.4);\
+var USts_d5 = ee.Image(0.2127);\
+var USts_d6 = ee.Image(0.22);\
+var USts_d7 = ee.Image(0.25);\
+var USts_d8 = ee.Image(0.31);\
+var USts_d9 = ee.Image(0.40);\
+var USts_d10 = ee.Image(0.55);\
+\
+//Reconstruct log-normal particle size distribution following M&B95\
+var Md1 = clay.expression('(clay/(100*(2*3.141593)**0.5*log(Dsd_clay)))*2.718281828**(((log(d1)-log(D_clay))**2)/(-2*log(Dsd_clay)**2))', \{clay:clay, Dsd_clay:Dsd_clay, d1:d1, D_clay:D_clay\});\
+var Md2 = clay.expression('(clay/(100*(2*3.141593)**0.5*log(Dsd_clay)))*2.718281828**(((log(d2)-log(D_clay))**2)/(-2*log(Dsd_clay)**2))', \{clay:clay, Dsd_clay:Dsd_clay, d2:d2, D_clay:D_clay\});\
+var Md3 = silt.expression('(silt/(100*(2*3.141593)**0.5*log(Dsd_silt)))*2.718281828**(((log(d3)-log(D_silt))**2)/(-2*log(Dsd_silt)**2))', \{silt:silt, Dsd_silt:Dsd_silt, d3:d3, D_silt:D_silt\});\
+var Md4 = silt.expression('(silt/(100*(2*3.141593)**0.5*log(Dsd_silt)))*2.718281828**(((log(d4)-log(D_silt))**2)/(-2*log(Dsd_silt)**2))', \{silt:silt, Dsd_silt:Dsd_silt, d4:d4, D_silt:D_silt\});\
+var Md5 = sand.expression('(sand/(100*(2*3.141593)**0.5*log(Dsd_sand)))*2.718281828**(((log(d5)-log(D_sand))**2)/(-2*log(Dsd_sand)**2))', \{sand:sand, Dsd_sand:Dsd_sand, d5:d5, D_sand:D_sand\});\
+var Md6 = sand.expression('(sand/(100*(2*3.141593)**0.5*log(Dsd_sand)))*2.718281828**(((log(d6)-log(D_sand))**2)/(-2*log(Dsd_sand)**2))', \{sand:sand, Dsd_sand:Dsd_sand, d6:d6, D_sand:D_sand\});\
+var Md7 = sand.expression('(sand/(100*(2*3.141593)**0.5*log(Dsd_sand)))*2.718281828**(((log(d7)-log(D_sand))**2)/(-2*log(Dsd_sand)**2))', \{sand:sand, Dsd_sand:Dsd_sand, d7:d7, D_sand:D_sand\});\
+var Md8 = sand.expression('(sand/(100*(2*3.141593)**0.5*log(Dsd_sand)))*2.718281828**(((log(d8)-log(D_sand))**2)/(-2*log(Dsd_sand)**2))', \{sand:sand, Dsd_sand:Dsd_sand, d8:d8, D_sand:D_sand\});\
+var Md9 = sand.expression('(sand/(100*(2*3.141593)**0.5*log(Dsd_sand)))*2.718281828**(((log(d9)-log(D_sand))**2)/(-2*log(Dsd_sand)**2))', \{sand:sand, Dsd_sand:Dsd_sand, d9:d9, D_sand:D_sand\});\
+var Md10 = sand.expression('(sand/(100*(2*3.141593)**0.5*log(Dsd_sand)))*2.718281828**(((log(d10)-log(D_sand))**2)/(-2*log(Dsd_sand)**2))', \{sand:sand, Dsd_sand:Dsd_sand, d10:d10, D_sand:D_sand\});\
+\
+//Map.addLayer(Md5,\{min:0,max:1700\},'Md5');\
+var Sd1 = Md1.expression('Md1/(2/3*pd*d1)', \{Md1:Md1, pd:pd, d1:d1\});\
+var Sd2 = Md2.expression('Md2/(2/3*pd*d2)', \{Md2:Md2, pd:pd, d2:d2\});\
+var Sd3 = Md3.expression('Md3/(2/3*pd*d3)', \{Md3:Md3, pd:pd, d3:d3\});\
+var Sd4 = Md4.expression('Md4/(2/3*pd*d4)', \{Md4:Md4, pd:pd, d4:d4\});\
+var Sd5 = Md5.expression('Md5/(2/3*pd*d5)', \{Md5:Md5, pd:pd, d5:d5\});\
+var Sd6 = Md6.expression('Md6/(2/3*pd*d6)', \{Md6:Md6, pd:pd, d6:d6\});\
+var Sd7 = Md7.expression('Md7/(2/3*pd*d7)', \{Md7:Md7, pd:pd, d7:d7\});\
+var Sd8 = Md8.expression('Md8/(2/3*pd*d8)', \{Md8:Md8, pd:pd, d8:d8\});\
+var Sd9 = Md9.expression('Md9/(2/3*pd*d9)', \{Md9:Md9, pd:pd, d9:d9\});\
+var Sd10 = Md10.expression('Md10/(2/3*pd*d10)', \{Md10:Md10, pd:pd, d10:d10\});\
+\
+//Map.addLayer(Sd5,\{min:0,max:1700\},'Sd5');\
+var Stot = Sd1.add(Sd2).add(Sd3).add(Sd4).add(Sd5).add(Sd6).add(Sd7).add(Sd8).add(Sd9);\
+//Map.addLayer(Stot,\{min:0,max:1700\},'Stot');\
+var Srel_d1 = Sd1.divide(Stot);\
+var Srel_d2 = Sd2.divide(Stot);\
+var Srel_d3 = Sd3.divide(Stot);\
+var Srel_d4 = Sd4.divide(Stot);\
+var Srel_d5 = Sd5.divide(Stot);\
+var Srel_d6 = Sd6.divide(Stot);\
+var Srel_d7 = Sd7.divide(Stot);\
+var Srel_d8 = Sd8.divide(Stot);\
+var Srel_d9 = Sd9.divide(Stot);\
+var Srel_d10 = Sd10.divide(Stot);\
+\
+//Map.addLayer(Srel_d5,\{min:0,max:1700\},'Srel_d5');stop\
+var check = Srel_d1.add(Srel_d2).add(Srel_d3).add(Srel_d4).add(Srel_d5).add(Srel_d6).add(Srel_d7).add(Srel_d8).add(Srel_d9);\
+//Map.addLayer(check,\{min:0,max:1700\},'check');stop\
+\
+//Proportion of emitted dust in the atmosphere (1<D<10um) see Zender(2003 Eq. 12)\
+var M = 0.87;\
+\
+var ctry = ee.Geometry.Polygon([-180, 85, 10, 85, 180, 85, 180, -85, 10, -85, -180, -85], null, false); //global geodesic polygon instead\
+\
+//var refstartdate = ee.Date.fromYMD(2011,1,1); //Min date is Feb 24, 2000 for GLDASv1\
+//var refenddate = ee.Date.fromYMD(2016,12,31);\
+//var allFilter = ee.Filter.date(refstartdate, refenddate);\
+\
+//var yrst = 2001;var yrend = 2009;//Lee 2001-2009\
+//var yrst = 2001;var yrend = 2016;//Kandajki 2001-2016\
+//var yrst = 2006;var yrend = 2013;//Hennen 2006-2013 but use only 2006 //v2 is reduced to 500 locations\
+var yrst = 2001;var yrend = 2009;//Baddock 2001-2009\
+//var yrst = 2003;var yrend = 2006;//Bullard 2003-2006\
+//var yrst = 2006;var yrend = 2016;//Eckardt 2006-2016\
+//var yrst = 2005;var yrend = 2015;//vonHoldt 2005-2015\
+//var yrst = 2006;var yrend = 2010;//Schepanski 2006-2010 but use only 2006 //v2 is reduced to 500 locations\
+//var yrst = 2003;var yrend = 2012;//Nobakht 2003-2012\
+//var yrst = 2006;var yrend = 2006;\
+var allFilter = ee.Filter.and( \
+    //ee.Filter.calendarRange(24, 24, 'day_of_month'),\
+    //ee.Filter.calendarRange(4, 9, 'month'),\
+    //ee.Filter.calendarRange(10, 3, 'month'),\
+    //ee.Filter.calendarRange(2, 2, 'month'),\
+    //ee.Filter.calendarRange(12, 2, 'month'),\
+    //ee.Filter.calendarRange(4, 4, 'month'),\
+    //ee.Filter.calendarRange(7, 7, 'month'),\
+    ee.Filter.calendarRange(yrst, yrend, 'year')\
+);\
+\
+var yrs = ee.Image(yrend).subtract(yrst).add(1);\
+\
+//seconds per year\
+var yrsec = ee.Image(60).multiply(60).multiply(24).multiply(365);\
+\
+// Load daily 500 m Terra NDVI\
+var bands = ['NDVI'];\
+var ndvi = ee.ImageCollection('MODIS/MOD09GA_006_NDVI')\
+    .filter(allFilter)\
+    .select(bands);\
+\
+//NDSI snow cover plus other results. This value is computed for MOD10_L2 and retrieved when\
+//the observation of the day is selected. Possible values are: 0-100 (NDSI snow cover).\
+//NDSI_Snow_Cover\
+var bands = ['NDSI_Snow_Cover'];\
+var mod10a1 = ee.ImageCollection('MODIS/006/MOD10A1') // daily\
+    .filter(allFilter)\
+    .select(bands);\
+\
+// Define an inner join.\
+var innerJoin = ee.Join.inner();\
+\
+// Specify an equals filter for image timestamps.\
+var filterTimeEq = ee.Filter.equals(\{\
+  leftField: 'system:time_start',\
+  rightField: 'system:time_start'\
+\});\
+\
+// Apply the join.\
+var innerJoinedMODIS = innerJoin.apply(mod10a1, ndvi, filterTimeEq);\
+\
+// Display the join result: a FeatureCollection.\
+print('Inner join output:', innerJoinedMODIS.limit(5));\
+\
+// Map a function to merge the results in the output FeatureCollection.\
+var joinedMODIS = innerJoinedMODIS.map(function(feature) \{\
+  return ee.Image.cat(feature.get('primary'), feature.get('secondary'));\
+\});\
+\
+// Print the result of merging.\
+print('Inner join, merged bands:', joinedMODIS.limit(5));\
+\
+// Load MODIS collection for new albedo-based Qh model\
+var bands = ['BRDF_Albedo_Parameters_Band1_iso','BRDF_Albedo_Parameters_Band1_geo','BRDF_Albedo_Parameters_Band1_vol'];\
+\
+//var mcd43a1 = ee.ImageCollection('MODIS/MCD43A1') // 8-daily\
+var mcd43a1 = ee.ImageCollection('MODIS/006/MCD43A1') //daily\
+    .filter(allFilter)\
+    .select(bands);\
+//print('mcd43a1: ', mcd43a1);\
+\
+// Set Time Difference for Time Filter \
+var dif = 1 * 2 * 60 * 60 * 1000; //2 hourly\
+\
+//convert and retrieve black sky albedo (equivalent to mcd43a3)\
+var sza = 0;\
+var modis = mcd43a1.map(function(image) \{\
+//var modis = mcd43a1_daily.map(function(image) \{\
+    return image.addBands(getDirectAlbedo(image, sza));\
+\});\
+//print('modis',modis.limit(5));stop\
+\
+var collection=modis;\
+var join = ee.Join.saveAll(\{\
+  matchesKey: 'images'\
+\});\
+var timeField = 'system:time_start';\
+var diffFilter = ee.Filter.maxDifference(\{\
+  difference: 1000 * 60 * 60 * 24 * 7,         //used to produce a 7 daily moving average mean\
+  leftField: timeField, \
+  rightField: timeField\
+\});\
+var threeNeighborJoin = join.apply(\{\
+  primary: collection, \
+  secondary: collection, \
+  condition: diffFilter\
+\});\
+var smoothed = ee.ImageCollection(threeNeighborJoin.map(function(image) \{\
+  var collection = ee.ImageCollection.fromImages(image.get('images'));\
+  return ee.Image(image).addBands(collection.mean());\
+\}));\
+//print(smoothed.limit(5),'smoothed');\
+//var smooth = ee.Image(smoothed.filter(allFilter).first());\
+//Map.addLayer(smoothed, \{bands: ['Black_Sky_Albedo_Band1'], max: 0.4\}, 'original');\
+var modis_week=smoothed.select(['Black_Sky_Albedo_Band1_1','BRDF_Albedo_Parameters_Band1_iso_1']);\
+\
+// Create Time Filter for Join\
+var timeFilter = ee.Filter.maxDifference(\{\
+    difference: dif,\
+    leftField: 'system:time_start',\
+    rightField: 'system:time_start'\
+\});\
+\
+// Define the join.\
+var saveAllJoin = ee.Join.saveAll(\{\
+  matchesKey: 'snow',\
+  ordering: 'system:time_start',\
+  ascending: true\
+\});\
+\
+// Apply the join.\
+var allmodis = saveAllJoin.apply(modis_week, joinedMODIS, timeFilter);\
+\
+// Display the result.\
+//print('allmodis',allmodis.limit(5));stop\
+\
+// Set Time Difference for Time Filter \
+var dif = 1 * 24 * 60 * 60 * 1000; //12 hours\
+\
+// Create Time Filter for Join\
+var timeFilter = ee.Filter.maxDifference(\{\
+    difference: dif,\
+    leftField: 'system:time_start',\
+    rightField: 'system:time_start'\
+\});\
+\
+//ERA5-Land is a reanalysis dataset providing a consistent view of the evolution of land variables over several decades \
+//at an enhanced resolution compared to ERA5. ERA5-Land has been produced by replaying the land component of the \
+//ECMWF ERA5 climate reanalysis. Reanalysis combines model data with observations from across the world into a globally \
+//complete and consistent dataset using the laws of physics. Reanalysis produces data that goes several decades back in time, \
+//providing an accurate description of the climate of the past. This dataset includes all 50 variables as available on CDS.\
+//ERA5-Land data is available from 1981 to three months from real-time. See Copernicus Climate Data Store.\
+//0.1 arc degrees\
+var bands = ['u_component_of_wind_10m','v_component_of_wind_10m','volumetric_soil_water_layer_1','soil_temperature_level_1'];\
+var ERA5L = ee.ImageCollection('ECMWF/ERA5_LAND/HOURLY') // 1981 - present: 10 km every hour\
+    .filter(allFilter)\
+    .select(bands);\
+//print('ERA5_Land',ERA5L.limit(5));\
+\
+// Define the join.\
+var saveAllJoin = ee.Join.saveAll(\{\
+  matchesKey: 'era5l',\
+  measureKey: 'timeDiff'\
+\});\
+\
+// Only use images that occur before the modis image.\
+var join = saveAllJoin.apply(allmodis, ERA5L, timeFilter);\
+print('join',join.limit(5));\
+\
+//Fecan's 1999 w prime static (since clay is static)\
+var wp = clay.expression('(0.0014*(clay)**2)+(0.17*clay)', \{clay:clay\}); //Fecan's w prime\
+//Map.addLayer(wp,\{\},'wp');\
+\
+//rescale normalised albedo to calibrated range [a,b]\
+var a = ee.Image(0.0001); var b = ee.Image(0.1);\
+\
+var ref = join.map(function(img) \{\
+    img = ee.Image(img);\
+    var era5l = ee.ImageCollection.fromImages(img.get("era5l"));//.max(); //Max wind and soil moisture\
+    var windu = era5l.select('u_component_of_wind_10m').max(); //max wind (m/s)\
+    var windv = era5l.select('v_component_of_wind_10m').max(); //max wind (m/s)\
+    var wind = img.expression('(windu**2+windv**2)**0.5', \{windu:windu,windv:windv\}); //max wind (m/s)\
+    var ws = era5l.select('volumetric_soil_water_layer_1').median().multiply(100); //for % consistent with wp \
+    ws = ws.multiply(0.20); //approximates the near surface %soil moisture\
+    \
+    //Fecan's 1999 approximation of soil moisture\
+    var HHw = img.expression('(1+(1.21*(ws-wp)**0.68))**0.5', \{ws:ws,wp:wp\}); //Fecan's function to convert to w > wp\
+    var Hw = HHw.where(ws.lte(wp),1); // merged\
+    \
+    //Soil temperature 273.15K = 0C\
+    var st = era5l.select('soil_temperature_level_1').median();\
+    var mst = ee.Image(1).where(st.lte(273.15),0);\
+    \
+    //Use MODIS albedo\
+    var imagebsa = ee.Image(img);\
+    var bsaB1 = imagebsa.select('Black_Sky_Albedo_Band1_1');//.multiply(0.0010).float();;\
+    var shad = (bsaB1).subtract(1).multiply(-1);\
+    var fisoB1 = imagebsa.select('BRDF_Albedo_Parameters_Band1_iso_1').multiply(0.0010).float();\
+    var wn = shad.divide(fisoB1);\
+    \
+    //rescale normalised albedo to calibrated range [a,b]\
+    var a = (0.0001); var b = (0.1);\
+    var wns = wn.subtract(35).multiply(a-b).divide(0-35).add(b);\
+    \
+    //remove snow using NDSI\
+    var snow = ee.ImageCollection.fromImages(img.get("snow"));\
+    var ndsi = snow.select('NDSI_Snow_Cover').median().divide(100).subtract(1).multiply(-1);\
+    var snow_mask = ee.Image(0).where(ndsi.eq(1),1); //for masking when snow cover NDSI>0%\
+    var snowmask = snow_mask.updateMask(snow_mask);\
+    wns=wns.updateMask(snowmask);\
+    \
+\
+    var USUh = img.expression('(0.0306*(2.718281828**(-(wns**1.1202)/0.0125)))+0.0072', \{wns:wns\});\
+    var US = USUh.multiply(wind);\
+    \
+\
+    //////////////////////////////////\
+    //Albedo-based\
+    //////////////////////////////////\
+    var USt_d1 = USts_d1.multiply(Hw);\
+    var USt_d2 = USts_d2.multiply(Hw);\
+    var USt_d3 = USts_d3.multiply(Hw);\
+    var USt_d4 = USts_d4.multiply(Hw);\
+    var USt_d5 = USts_d5.multiply(Hw);\
+    var USt_d6 = USts_d6.multiply(Hw);\
+    var USt_d7 = USts_d7.multiply(Hw);\
+    var USt_d8 = USts_d8.multiply(Hw);\
+    var USt_d9 = USts_d9.multiply(Hw);\
+    var USt_d10 = USts_d10.multiply(Hw);\
+    \
+    var Ef_d1 = img.expression('(1+(USt_d1/US))*(1-((USt_d1/US)**2))', \{USt_d1:USt_d1, US:US\});\
+    var Ef_d2 = img.expression('(1+(USt_d2/US))*(1-((USt_d2/US)**2))', \{USt_d2:USt_d2, US:US\});\
+    var Ef_d3 = img.expression('(1+(USt_d3/US))*(1-((USt_d3/US)**2))', \{USt_d3:USt_d3, US:US\});\
+    var Ef_d4 = img.expression('(1+(USt_d4/US))*(1-((USt_d4/US)**2))', \{USt_d4:USt_d4, US:US\});\
+    var Ef_d5 = img.expression('(1+(USt_d5/US))*(1-((USt_d5/US)**2))', \{USt_d5:USt_d5, US:US\});\
+    var Ef_d6 = img.expression('(1+(USt_d6/US))*(1-((USt_d6/US)**2))', \{USt_d6:USt_d6, US:US\});\
+    var Ef_d7 = img.expression('(1+(USt_d7/US))*(1-((USt_d7/US)**2))', \{USt_d7:USt_d7, US:US\});\
+    var Ef_d8 = img.expression('(1+(USt_d8/US))*(1-((USt_d8/US)**2))', \{USt_d8:USt_d8, US:US\});\
+    var Ef_d9 = img.expression('(1+(USt_d9/US))*(1-((USt_d9/US)**2))', \{USt_d9:USt_d9, US:US\});\
+    var Ef_d10 = img.expression('(1+(USt_d10/US))*(1-((USt_d10/US)**2))', \{USt_d10:USt_d10, US:US\});\
+    \
+    Ef_d1 = Ef_d1.where(Ef_d1.lte(0), 0);\
+    Ef_d2 = Ef_d2.where(Ef_d2.lte(0), 0);\
+    Ef_d3 = Ef_d3.where(Ef_d3.lte(0), 0);\
+    Ef_d4 = Ef_d4.where(Ef_d4.lte(0), 0);\
+    Ef_d5 = Ef_d5.where(Ef_d5.lte(0), 0);\
+    Ef_d6 = Ef_d6.where(Ef_d6.lte(0), 0);\
+    Ef_d7 = Ef_d7.where(Ef_d7.lte(0), 0);\
+    Ef_d8 = Ef_d8.where(Ef_d8.lte(0), 0);\
+    Ef_d9 = Ef_d9.where(Ef_d9.lte(0), 0);\
+    Ef_d10 = Ef_d10.where(Ef_d10.lte(0), 0);\
+    \
+    //var Qh1 = clay.divide(100).multiply(Qh_clay);\
+    //var Qh2 = silt.divide(100).multiply(Qh_silt);\
+    //var Qh3 = sand.divide(100).multiply(Qh_sand);\
+    \
+    // total Qh of all fractions\
+    var Qh1 = Ef_d1.add(Ef_d2).add(Ef_d3).add(Ef_d4).add(Ef_d5).add(Ef_d6).add(Ef_d7).add(Ef_d8).add(Ef_d9).add(Ef_d10);\
+    var Qh2 = img.expression('c*ad/g*US**3', \{c:c, ad:ad, g:g, US:US\});\
+    var PQh = Qh2.multiply(Qh1).multiply(mst).multiply(ndsi);\
+    \
+    //Qh adjusted for area of size becomes G\
+    var Gh_d1 = img.expression('Ef_d1*Srel_d1', \{Ef_d1:Ef_d1, Srel_d1:Srel_d1\});\
+    var Gh_d2 = img.expression('Ef_d2*Srel_d2', \{Ef_d2:Ef_d2, Srel_d2:Srel_d2\});\
+    var Gh_d3 = img.expression('Ef_d3*Srel_d3', \{Ef_d3:Ef_d3, Srel_d3:Srel_d3\});\
+    var Gh_d4 = img.expression('Ef_d4*Srel_d4', \{Ef_d4:Ef_d4, Srel_d4:Srel_d4\});\
+    var Gh_d5 = img.expression('Ef_d5*Srel_d5', \{Ef_d5:Ef_d5, Srel_d5:Srel_d5\});\
+    var Gh_d6 = img.expression('Ef_d6*Srel_d6', \{Ef_d6:Ef_d6, Srel_d6:Srel_d6\});\
+    var Gh_d7 = img.expression('Ef_d7*Srel_d7', \{Ef_d7:Ef_d7, Srel_d7:Srel_d7\});\
+    var Gh_d8 = img.expression('Ef_d8*Srel_d8', \{Ef_d8:Ef_d8, Srel_d8:Srel_d8\});\
+    var Gh_d9 = img.expression('Ef_d9*Srel_d9', \{Ef_d9:Ef_d9, Srel_d9:Srel_d9\});\
+    var Gh_d10 = img.expression('Ef_d10*Srel_d10', \{Ef_d10:Ef_d10, Srel_d10:Srel_d10\});\
+    \
+    var Gh1 = Gh_d1.add(Gh_d2).add(Gh_d3).add(Gh_d4).add(Gh_d5).add(Gh_d6).add(Gh_d7).add(Gh_d8).add(Gh_d9).add(Gh_d10);\
+    var Gh2 = img.expression('c*ad/g*US**3', \{c:c, ad:ad, g:g, US:US\});\
+    var Gh = Gh2.multiply(Gh1);\
+    \
+    var Fmb = img.expression('ndsi*mst*Gh*10**(0.134*(maskclay20)-6)',\{mst:mst,ndsi:ndsi,Gh:Gh,maskclay20:maskclay20\}); //daily g/m^2/s\
+    Fmb = Fmb.multiply(yrsec);\
+    \
+  return img.select()\
+    \
+    .addBands(PQh.rename('PQh'))\
+    .addBands(Fmb.rename('Fmb'))\
+    .addBands(USUh.rename('USUh'))\
+    .addBands(US.rename('US'))\
+    .addBands(wind.rename('wind'))\
+    .toFloat()\
+    .set('system:time_start', img.get('system:time_start'));\
+\});\
+//print('merged MODIS and GLDAS',ref);\
+\
+ref = ee.ImageCollection(ref);\
+//print('ref',ref.limit(5));\
+\
+\
+/////////////////////////////////////////////\
+//For area mean use the following code\
+/////////////////////////////////////////////\
+\
+var mySample = ref.map(function(img)\{\
+  var test = img.sampleRegions(\{\
+  //collection: Lee,\
+  //collection: Kandakji,\
+  //collection: Hennen4,\
+  collection: Baddock,\
+  //collection: Bullard,\
+  //collection: Eckardt,\
+  //collection: vonHoldt,\
+  //collection: Schepanski4,\
+  //collection: Nobakht,\
+  //reducer: ee.Reducer.mean(),\
+  scale: 500, ////////////////////////////////////////////////////////////////////////////\
+\});\
+  return test;\
+\});\
+//print('mySample',mySample.limit(5));\
+//print('flatten',mySample.flatten().limit(5))\
+function featuresWithoutGeometry(fs) \{ \
+  //return fs.map(function(f) \{ return ee.Feature(null).copyProperties(f); \});\
+  return fs.map(function(f) \{ return ee.Feature(f.select([".*"], null, false))\}); \
+\}\
+var mySample_fwg = featuresWithoutGeometry(mySample.flatten());\
+print('mySample_fwg',mySample_fwg.limit(5));\
+\
+// Export the FeatureCollection.\
+Export.table.toDrive(\{\
+  //collection: mySample.flatten(),\
+  //collection: tested,\
+  collection: mySample_fwg,\
+  folder: 'GEE export',\
+  \
+  //description: '2001-2009_daily_ERA5_Land_Lee_Obs_both_v9_500m',\
+  //description: '2001-2016_daily_ERA5_Land_Kandakji_Obs_both_v9_500m',\
+  //description: '2006-2013_daily_ERA5_Land_Hennen_Obs_both_v9_500m',\
+  description: '2001-2009_daily_ERA5_Land_Baddock_Obs_both_v9_500m',\
+  //description: '2003-2006_daily_ERA5_Land_Bullard_Obs_both_v9_500m',\
+  //description: '2006-2016_daily_ERA5_Land_Eckardt_Obs_v9_500m',\
+  //description: '2005-2015_daily_ERA5_Land_vonHoldt_Obs_both_v9_500m',\
+  //description: '2006-2010_daily_ERA5_Land_Schepanski_Obs_both_v9_500m',\
+  //description: '2003-2012_daily_ERA5_Land_Nobakht_Obs_both_v9_500m',\
+  fileFormat: 'csv'\
+\});\
+\
+\
+\
+\
+\
+\
+// FUNCTIONS:\
+//Convenience method to extract the band-specific parameters\
+function getParams(band, paramsImage) \{\
+  return paramsImage.select([\
+    'BRDF_Albedo_Parameters_Band'+band+'_iso',\
+    'BRDF_Albedo_Parameters_Band'+band+'_vol',\
+    'BRDF_Albedo_Parameters_Band'+band+'_geo'\
+    ],\
+    ['iso','vol','geo']) // rename\
+    .multiply(0.0010); // scale factor\
+    \
+\}\
+\
+// Return a black sky albedo image with specified sza\
+function getDirectAlbedo(paramsImage, sza) \{\
+  var baseName = 'Black_Sky_Albedo_Band';\
+  //var bands = [1,2,3,4,5,6,7];\
+  //var bands = [1,3,7];\
+  var bands = [1];\
+  return ee.Image(\
+    bands.map(function(band) \{\
+      return bsAlbedo(getParams(band, paramsImage), sza)\
+        .select(['direct_albedo'], [baseName+band])\
+        .set('system:time_start', paramsImage.get('system:time_start'));\
+    \})\
+  );\
+\}\
+\
+// Black sky albedo per Schaaf et al. (2002), equation 2, table 2\
+function bsAlbedo(params, sza) \{\
+  // convert supplied angle variables into images in radians\
+  var szaImage = ee.Image(sza).multiply(Math.PI).divide(180.0);\
+  var sza2 = szaImage.pow(2);\
+  var sza3 = szaImage.pow(3);\
+  \
+  // linear coefficients\
+  var g0vol = ee.Image(-0.007574);\
+  var g0geo = ee.Image(-1.284909);\
+  // quadratic coefficients\
+  var g1vol = ee.Image(-0.070987);\
+  var g1geo = ee.Image(-0.166314);\
+  // cubic coefficients\
+  var g2vol = ee.Image(0.307588);\
+  var g2geo = ee.Image(0.041840);\
+  \
+  var iso = params.select(['iso']); // g0iso = 1\
+  var vol = params.select(['vol']).multiply(\
+    g0vol.add(g1vol.multiply(sza2)).add(g2vol.multiply(sza3)));\
+  var geo = params.select(['geo']).multiply(\
+    g0geo.add(g1geo.multiply(sza2)).add(g2geo.multiply(sza3)));\
+\
+  return iso.add(vol).add(geo).select([0], ['direct_albedo']);\
+\}\
+\
+// Add a band containing image date as years since year\
+function createTimeBand(img) \{\
+  var year = ee.Date(img.get('system:time_start')).get('year').subtract(yrst); //Also see Forum for use with GLDAS trend\
+  //var year = ee.Date(img.get('system:time_start')).get('month').subtract(1); //Also see Forum for use with GLDAS trend\
+  return ee.Image(year).byte().addBands(img);\
+  //return img.addBands(img.metadata('system:time_start').divide(1e18));\
+\}\
+}
