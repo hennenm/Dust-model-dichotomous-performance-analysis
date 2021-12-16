@@ -1,0 +1,3 @@
+Includes two folders:
+1. Dust Point Source (DPS) observation data, including co-ordinates, dates of observation, and 1-degree grid id
+2. Look-up-tables (LUT) required to run Python code
