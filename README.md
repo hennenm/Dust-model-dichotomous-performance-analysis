@@ -11,20 +11,21 @@ This Github repository contains:
 Link to Google Earth Engine code (Google user account and login required):
 https://code.earthengine.google.com/a48652d123f7c56dab0bcdf4a3f9abf5
 
-Download the 'gmd_data' file in a locall accessible loction before you begin running the model. 
+**Running the albedo model**
 
+1. Download the 'gmd_data' file in a locall accessible loction before you begin running the model.
+2. To run the Google Earth Engine (GEE) code, either follow the link above, or copy and past the text file into a GEE web portal.
 
-Running Google Earth Engine Code
-
-To run the Google Earth Engine (GEE) code, either follow the link above, or copy and past the text file into a GEE web portal. 
-****Important***
+****Important****
 **You will need to import the DPS observation data (locations and dates) as assets before running the code**. 
-Export the model outputs into you google drive folder. Save theese files in a locally accessbile drive before running the Python analysis code. 
 
+3. Export the model outputs into you google drive folder. Save theese files in a locally accessbile drive before running the Python analysis code. We suggest saving in the 'gmd_data' folder.  
 
-Python analysis
+**Python analysis**
 
-This code is sude to produce the figures in the manuscript, including data tables, plots and maps. **Maps are created in QGIS using the gridded output data**
+1. This code is used to produce the figures in the manuscript, including data tables, plots and maps. 
+****Maps are created in QGIS using the gridded output data****
 
-You must insert the location of you user workspace, and the locations of imput data
+2. You must insert the location of you user workspace, and the locations of input 'gmd_data' folder. 
+3. If you have saved the GEE outputs in another folder, make this file location known in the dat_in argument.  
 
